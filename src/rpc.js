@@ -36,7 +36,8 @@ module.exports = (cfg, core, network, db) => {
       }
 
       let ret = await db.get(key)
-      if (encoding) {
+      if (encoding && typeof(encoding) === 'string') {
+        console.log('Getting with encoding', encoding)
         ret = ret.toString(encoding)
       } else if (Buffer.isBuffer(ret)) {
         ret = ret.toString('hex')
@@ -83,11 +84,18 @@ module.exports = (cfg, core, network, db) => {
       }
     },
 
-    'subscribe': async (regex, callback) => {
-      console.log('Registering sub:', regex, callback)
-      setInterval(() => {
-        callback('sushi!')
-      }, 1500)
+    'subscribe': async (regex, opts) => {
+      console.log('Registering sub:', regex)
+      const notifier = (k, v) => {
+        opts.call('event', k)
+      }
+
+      opts.stream(() => {
+        console.log('Sub', regex, 'closed')
+        db.unregisterWatcher(regex, notifier)
+      })
+
+      db.registerWatcher(regex, notifier)
     }
   }
 }

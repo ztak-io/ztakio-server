@@ -8,8 +8,10 @@ module.exports = (db) => {
   const notify = (k, v) => {
     // TODO: This is a very naive approach to notification and could get out of hand
     let vals = Object.values(watchers)
+    console.log('Notifying over', vals)
     for (let i=0; i < vals.length; i++) {
       const {regex, list} = vals[i]
+      console.log('Notify test', regex, k, v)
       if (regex.test(k)) {
         list.forEach(cb => cb(k, v))
       }
@@ -37,6 +39,7 @@ module.exports = (db) => {
       const {k, v} = notificationQueue[i]
       notify(k, v)
     }
+    notificationQueue = []
     return db.commit()
   }
 
@@ -59,6 +62,19 @@ module.exports = (db) => {
           watchers[path] = {regex: r, list: []}
         }
         watchers[path].list.push(watcher)
+      }
+    }
+  }
+
+  const unregisterWatcher = (path, watcher) => {
+    if (!Array.isArray(path)) {
+      path = [path]
+    }
+
+    for (let i=0; i < path.length; i++) {
+      let item = path[i]
+      if (item.startsWith('\\/') && item in watcher) {
+        watchers[item].list = watchers[item].list.filter(x => x !== watcher)
       }
     }
   }

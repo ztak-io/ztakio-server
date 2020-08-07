@@ -7,6 +7,7 @@ const fsPromises = require('fs').promises
 const mustache = require('mustache')
 const path = require('path')
 const rpc = require('json-rpc2')
+const {promisify} = require('util')
 
 const config = require('./config')
 
@@ -141,22 +142,27 @@ const commands = {
     const client = rpc.Client.$create(config.webport, config.connect, user, pass)
 
     client.connectWebsocket((err, conn) => {
+      conn.callAsync = promisify(conn.call)
       if (err) {
         console.log(err)
         return
       }
 
-      client.expose('event', (params) => {
-        console.log('Server event:', params)
-      })
-
-      conn.call('core.subscribe', [regex], (err) => {
-        if (err) {
-          console.error(err)
-        } else {
-          console.log('Subscribed to events on:', regex)
+      client.expose('event', async ([key]) => {
+        try {
+          let value = await conn.callAsync('core.get', [key])
+          console.log('Event', key, value)
+        } catch(e) {
+          console.log(`Error while getting value for key ${key}:`, e)
         }
       })
+
+      try {
+        conn.callAsync('core.subscribe', [regex])
+        console.log('Subscribed to events on:', regex)
+      } catch(e) {
+        console.log('Error while subscribing', e)
+      }
     })
   }
 }
