@@ -1,4 +1,4 @@
-const rpcMethodDecorator = (name, method, mw) => async (args, {req, res}, callback) => {
+const rpcMethodDecorator = (name, method, mw) => async (args, {req, res, call}, callback) => {
   for (let i=0; i < mw.length; i++) {
     try {
       await mw[i](req)
@@ -10,7 +10,7 @@ const rpcMethodDecorator = (name, method, mw) => async (args, {req, res}, callba
 
   if (Array.isArray(args)) {
     try {
-      let val = await method(...args)
+      let val = await method(...args, call)
       callback(null, val)
     } catch(e) {
       console.log(`While handling method '${name}'`, e)

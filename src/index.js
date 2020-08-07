@@ -7,10 +7,11 @@ const ztakioCore = require('ztakio-core')
 
 const decorate = require('./decorator')
 const dbStatsLayer = require('./dbstats')
+const dbWatchLayer = require('./dbwatch')
 const config = require('./config')
 
 
-const db = dbStatsLayer(ztakioDb(leveldown(config.datadir)))
+const db = dbWatchLayer(dbStatsLayer(ztakioDb(leveldown(config.datadir))))
 const network = ztakioCore.networks[config.network || 'mainnet']
 
 function core() {
@@ -21,10 +22,9 @@ function core() {
     return async (byteCode) => {
       try {
         context.loadProgram(byteCode)
-        await ztakioCore.asm.execute(context)
+        let res = await ztakioCore.asm.execute(context)
         return true
       } catch (e) {
-        console.log(e)
         return e.message
       }
     }

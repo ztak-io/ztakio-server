@@ -49,11 +49,16 @@ module.exports = (cfg, core, network, db) => {
 
     'tx': async (envelope) => {
       const msg = ztak.openEnvelope(Buffer.from(envelope, 'hex'))
-      console.log(msg.txid)
 
       const prog = Buffer.from(msg.data, 'hex')
       const executor = core(msg.from)
-      return await executor(prog)
+      let res = await executor(prog)
+      console.log(res)
+      if (res === true) {
+        return msg.txid
+      } else {
+        throw new Error('invalid-tx:' + res.split(' ').pop())
+      }
     },
 
     'template': async (contract, parameters) => {
@@ -76,6 +81,13 @@ module.exports = (cfg, core, network, db) => {
       } else {
         throw new Error(`Contract ${bname} isn't loaded in this instance`)
       }
+    },
+
+    'subscribe': async (regex, callback) => {
+      console.log('Registering sub:', regex, callback)
+      setInterval(() => {
+        callback('sushi!')
+      }, 1500)
     }
   }
 }

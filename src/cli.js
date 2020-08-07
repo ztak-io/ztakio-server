@@ -52,6 +52,23 @@ const commands = {
     }
   },
 
+  'sign': async (file, options) => {
+    let hex
+    if (file === '-') {
+      hex = await readStdin()
+    } else {
+      hex = fs.readFileSync(path.resolve(file), 'utf8')
+    }
+    let byteCode = Buffer.from(hex, 'hex')
+
+    if (options.wif) {
+      const ecpair = bitcoin.ECPair.fromWIF(options.wif)
+      console.log(ztak.buildEnvelope(ecpair, byteCode).toString('hex'))
+    } else {
+      console.log(byteCode.toString('hex'))
+    }
+  },
+
   'exec': async (hex) => {
     let core = require('./index')
 
@@ -112,6 +129,30 @@ const commands = {
       } else {
         console.log(result)
       }
+    })
+  },
+
+  'watch': async (regex) => {
+    const [user, pass] = (config.webbasicauth || '').split(':')
+    const client = rpc.Client.$create(config.webport, config.connect, user, pass)
+
+    client.connectWebsocket((err, conn) => {
+      if (err) {
+        console.log(err)
+        return
+      }
+
+      client.expose('event', (params) => {
+        console.log('Server event:', params)
+      })
+
+      conn.call('core.subscribe', [regex], (err) => {
+        if (err) {
+          console.error(err)
+        } else {
+          console.log('Subscribed to events on:', regex)
+        }
+      })
     })
   }
 }

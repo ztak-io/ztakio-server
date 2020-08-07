@@ -4,7 +4,7 @@
   "description": "Ztak.io RPC Server",
   "main": "src/index.js",
   "scripts": {
-    "dev": "DEBUG=ztakio-server:* nodemon src/index.js --datadir data --forceroot /hazama --websockets --webbasicauth john:rpc",
+    "dev": "DEBUG=ztakio-server:* nodemon src/index.js",
     "dumpDb": "nodemon src/cli.js --datadir data dumpdb",
     "compileFederation": "nodemon src/cli.js compile ./hazama_federation.asm --wif $1",
     "exec": "nodemon src/cli.js --datadir data exec $1",
