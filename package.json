@@ -1,13 +1,14 @@
 {
   "name": "ztakio-server",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Ztak.io RPC Server",
   "main": "src/index.js",
   "scripts": {
-    "dev": "DEBUG=ztakio-server:* nodemon src/index.js --datadir data --forceroot /hazama --webbasicauth john:rpc",
+    "dev": "DEBUG=ztakio-server:* nodemon src/index.js --datadir data --forceroot /hazama --websockets --webbasicauth john:rpc",
     "dumpDb": "nodemon src/cli.js --datadir data dumpdb",
     "compileFederation": "nodemon src/cli.js compile ./hazama_federation.asm --wif $1",
     "exec": "nodemon src/cli.js --datadir data exec $1",
+    "cli": "node src/cli.js $@",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -27,8 +28,9 @@
     "json-rpc2": "^2.0.0",
     "leveldown": "^5.6.0",
     "log": "^6.0.0",
+    "mustache": "^4.0.1",
     "yargs": "^15.4.1",
-    "ztakio-core": "0.0.1",
-    "ztakio-db": "0.0.1"
+    "ztakio-core": "0.0.2",
+    "ztakio-db": "0.0.2"
   }
 }

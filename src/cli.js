@@ -1,16 +1,28 @@
-const {argv} = require('yargs')
+const yargs = require('yargs')
 const ztak = require('ztakio-core')
 const ztakioDb = require('ztakio-db')
 const bitcoin = require('bitcoinjs-lib')
 const fs = require('fs')
+const fsPromises = require('fs').promises
+const mustache = require('mustache')
 const path = require('path')
+
+const readStdin = () => new Promise((resolve, reject) => {
+  fs.read(0, (err, bytesRead, buffer) => {
+    if (err) {
+      reject(err)
+    } else {
+      resolve(buffer.toString('utf8'))
+    }
+  })
+})
 
 const commands = {
   'createwallet': () => {
     const ecpair = bitcoin.ECPair.makeRandom()
     let network = ztak.networks.mainnet
 
-    if (argv.testnet) {
+    if (yargs.argv.testnet) {
       network = ztak.networks.testnet
     }
 
@@ -20,8 +32,13 @@ const commands = {
     console.log('Wif:', ecpair.toWIF())
   },
 
-  'compile': (file, options) => {
-    let code = fs.readFileSync(path.resolve(file), 'utf8')
+  'compile': async (file, options) => {
+    let code
+    if (file === '-') {
+      code = await readStdin()
+    } else {
+      code = fs.readFileSync(path.resolve(file), 'utf8')
+    }
     let byteCode = ztak.asm.compile(code)
 
     if (options.wif) {
@@ -34,6 +51,10 @@ const commands = {
 
   'exec': async (hex) => {
     let core = require('./index')
+
+    if (!hex || typeof(hex) === 'object') {
+      hex = await readStdin()
+    }
 
     const msg = ztak.openEnvelope(Buffer.from(hex, 'hex'))
 
@@ -49,18 +70,30 @@ const commands = {
 
     let ret = {}
     ldb.createReadStream().on('data', (data) => {
-      ret[data.key.toString('utf8')] = data.value
+      ret[data.key.toString('utf8')] = JSON.parse(data.value)
     }).on('error', (err) => {
       console.log('Error while dumping:', err)
     }).on('end', () => {
       console.log(ret)
     })
+  },
+
+  'template': async (contract, ...args) => {
+    let bname = path.basename(contract)
+    let fpath = process.cwd() + '/contracts/' + bname + '.asm'
+    try {
+      let template = await fsPromises.readFile(fpath, 'utf8')
+      console.log(mustache.render(template, args[0]))
+    } catch(e) {
+      console.log(e)
+      throw new Error(`Contract ${bname} isn't loaded in this instance (check ${fpath} exists`)
+    }
   }
 }
 
-if (argv._.length > 0 && argv._[0] in commands) {
-  let { _: [command, ...params], ...rest } = argv
+if (yargs.argv._.length > 0 && yargs.argv._[0] in commands) {
+  let { _: [command, ...params], ...rest } = yargs.argv
   commands[command](...params, rest)
 } else {
-  console.log('ztak-cli\nInvalid command. Available commands:\n', Object.keys(commands).map(x => ' * ' + x).join('\n'))
+  console.log('ztak-cli: Command line interface to Ztakio-server\nInvalid command. Available commands:\n'+ Object.keys(commands).map(x => ' * ' + x).join('\n'))
 }

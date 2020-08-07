@@ -1,3 +1,6 @@
+const fs = require('fs').promises
+const path = require('path')
+const mustache = require('mustache')
 const ztak = require('ztakio-core')
 const asm = require('ztakio-core')
 const ztakiocorePkg = require('ztakio-core/package.json')
@@ -44,6 +47,17 @@ module.exports = (cfg, core, network, db) => {
       const prog = Buffer.from(msg.data, 'hex')
       const executor = core(msg.from)
       return await executor(prog)
+    },
+
+    'template': async (contract, parameters) => {
+      let bname = path.basename(contract)
+      let fpath = './contracts/' + bname + '.asm'
+      if (fs.access(fpath)) {
+        let template = await fs.readFile(fpath, 'utf8')
+        return mustache.render(template, parameters)
+      } else {
+        throw new Error(`Contract ${bname} isn't loaded in this instance`)
+      }
     }
   }
 }
