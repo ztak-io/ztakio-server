@@ -57,7 +57,11 @@ const commands = {
     if (file === '-') {
       hex = await readStdin()
     } else {
-      hex = fs.readFileSync(path.resolve(file), 'utf8')
+      try {
+        hex = fs.readFileSync(path.resolve(file), 'utf8')
+      } catch(e) {
+        hex = file
+      }
     }
     let byteCode = Buffer.from(hex, 'hex')
 
