@@ -22,6 +22,9 @@ module.exports = (cfg, core, network, db) => {
     },
 
     'get': async (key, encoding) => {
+      if (!key) {
+        throw new Error('must specify a key path')
+      }
       if (!key.startsWith('/')) {
         throw new Error(`all keys must start with a /`)
       }
@@ -38,11 +41,15 @@ module.exports = (cfg, core, network, db) => {
       } else if (Buffer.isBuffer(ret)) {
         ret = ret.toString('hex')
       }
+      if (typeof(ret) === 'bigint') {
+        ret = ret.toString()
+      }
       return ret
     },
 
     'tx': async (envelope) => {
       const msg = ztak.openEnvelope(Buffer.from(envelope, 'hex'))
+      console.log(msg.txid)
 
       const prog = Buffer.from(msg.data, 'hex')
       const executor = core(msg.from)
@@ -50,11 +57,22 @@ module.exports = (cfg, core, network, db) => {
     },
 
     'template': async (contract, parameters) => {
+      if (typeof(parameters) === 'string') {
+        try {
+          parameters = JSON.parse(parameters)
+        } catch(e) {
+          return "Invalid JSON data"
+        }
+      }
       let bname = path.basename(contract)
       let fpath = './contracts/' + bname + '.asm'
       if (fs.access(fpath)) {
         let template = await fs.readFile(fpath, 'utf8')
-        return mustache.render(template, parameters)
+        try {
+          return mustache.render(template, parameters)
+        } catch(e) {
+          return e.message
+        }
       } else {
         throw new Error(`Contract ${bname} isn't loaded in this instance`)
       }

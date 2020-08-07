@@ -4,10 +4,10 @@
 # 2) amount
 # The called token must have an "issuance" entrypoint
 # The issuance function must return 1 on success
-REQUIRE /hazama/{{{path}}}
+REQUIRE {{{path}}}
 
 # Issuance
 PUSHI {{{amount}}}
-ECALL /hazama/{{{path}}}:issuance
+ECALL {{{path}}}:issuance
 
 END

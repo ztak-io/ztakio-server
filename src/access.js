@@ -8,20 +8,22 @@ module.exports = (cfg, db) => {
 
     if (authparams.length === 2) {
       mw = async (req, res) => {
-        log.warn('asdfasd')
-        let auth = req.headers.authorization.split(' ')
-        let token = Buffer.from(auth.pop(), 'base64').toString('utf8').split(':')
+        if (req.headers.authorization) {
+          let auth = req.headers.authorization.split(' ')
+          let token = Buffer.from(auth.pop(), 'base64').toString('utf8').split(':')
 
-        if (token.length === 2) {
-          if (authparams[0] === token[0] && authparams[1] === token[1]) {
-            return
+          if (token.length === 2) {
+            if (authparams[0] === token[0] && authparams[1] === token[1]) {
+              return
+            } else {
+              throw new Error('not authorized')
+            }
           } else {
-            throw new Error('not authorized')
+            throw new Error('bad authorization')
           }
         } else {
-          throw new Error('bad authorization')
+          throw new Error('requires authorization')
         }
-
       }
     } else {
       log.warn('--webbasicauth must be of the form user:pass')

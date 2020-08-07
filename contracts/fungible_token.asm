@@ -6,7 +6,7 @@
 # 4) tokenVersion
 # 5) author
 
-NAMESPACE /hazama/{{{path}}}
+NAMESPACE {{{path}}}
 META "Info" '{"decimals": {{{decimals}}} }'
 META "Name" "{{{name}}}"
 META "Version" "{{{tokenVersion}}}"

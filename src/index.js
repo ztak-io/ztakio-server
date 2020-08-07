@@ -1,5 +1,4 @@
 const fs = require('fs')
-const {argv} = require('yargs')
 const leveldown = require('leveldown')
 const rpc = require('json-rpc2')
 
@@ -8,28 +7,11 @@ const ztakioCore = require('ztakio-core')
 
 const decorate = require('./decorator')
 const dbStatsLayer = require('./dbstats')
+const config = require('./config')
 
-if (argv.conf) {
-  mixConfig(argv.conf)
-}
-mixConfig('config.json')
 
-function mixConfig(fname) {
-  try {
-    const ncfg = JSON.parse(fs.readFileSync(fname, 'utf8'))
-
-    for (x in ncfg) {
-      if (!(x in argv)) {
-        argv[x] = ncfg[x]
-      }
-    }
-  } catch(e) {
-    console.log(`Error loading ${fname} config file: ${e.message}`)
-  }
-}
-
-const db = dbStatsLayer(ztakioDb(leveldown(argv.datadir)))
-const network = ztakioCore.networks[argv.network || 'mainnet']
+const db = dbStatsLayer(ztakioDb(leveldown(config.datadir)))
+const network = ztakioCore.networks[config.network || 'mainnet']
 
 function core() {
   let ut = ztakioCore.utils(network)
@@ -52,20 +34,20 @@ function core() {
 }
 
 if (process.mainModule === module) {
-  if (argv.webserver !== 'no') {
-    const websocketEnabled = 'websockets' in argv
-    const webPort = argv.webport || 3041
-    const webBind = argv.webbind || '0.0.0.0'
+  if (config.webserver !== 'no') {
+    const websocketEnabled = 'websockets' in config
+    const webPort = config.webport || 3041
+    const webBind = config.webbind || '0.0.0.0'
     const server = rpc.Server.$create({
       websocket: websocketEnabled,
       headers: {
-        'Access-Control-Allow-Origin': argv.cors || '*'
+        'Access-Control-Allow-Origin': config.cors || '*'
       }
     })
 
-    let methods = require('./rpc')(argv, core(), network, db)
+    let methods = require('./rpc')(config, core(), network, db)
     server.expose('core', decorate(methods, [
-      require('./access')(argv, db)
+      require('./access')(config, db)
     ]))
 
     server.listen(webPort, webBind)

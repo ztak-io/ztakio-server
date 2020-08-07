@@ -6,6 +6,9 @@ const fs = require('fs')
 const fsPromises = require('fs').promises
 const mustache = require('mustache')
 const path = require('path')
+const rpc = require('json-rpc2')
+
+const config = require('./config')
 
 const readStdin = () => new Promise((resolve, reject) => {
   fs.read(0, (err, bytesRead, buffer) => {
@@ -22,7 +25,7 @@ const commands = {
     const ecpair = bitcoin.ECPair.makeRandom()
     let network = ztak.networks.mainnet
 
-    if (yargs.argv.testnet) {
+    if (config.testnet) {
       network = ztak.networks.testnet
     }
 
@@ -88,11 +91,33 @@ const commands = {
       console.log(e)
       throw new Error(`Contract ${bname} isn't loaded in this instance (check ${fpath} exists`)
     }
+  },
+
+  'rpc': async (command, ...args) => {
+    const [user, pass] = (config.webbasicauth || '').split(':')
+    const client = rpc.Client.$create(config.webport, config.connect, user, pass)
+
+    let params = args.slice(0, -1)
+
+    for (let i=0; i < params.length; i++) {
+      if (params[i] === '-') {
+        // Replace parameter with stdin
+        params[i] = await readStdin()
+      }
+    }
+
+    client.call(command, params, (err, result) => {
+      if (err) {
+        console.error(err)
+      } else {
+        console.log(result)
+      }
+    })
   }
 }
 
-if (yargs.argv._.length > 0 && yargs.argv._[0] in commands) {
-  let { _: [command, ...params], ...rest } = yargs.argv
+if (config._.length > 0 && config._[0] in commands) {
+  let { _: [command, ...params], ...rest } = config
   commands[command](...params, rest)
 } else {
   console.log('ztak-cli: Command line interface to Ztakio-server\nInvalid command. Available commands:\n'+ Object.keys(commands).map(x => ' * ' + x).join('\n'))
