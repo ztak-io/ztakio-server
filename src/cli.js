@@ -142,11 +142,15 @@ const commands = {
     const client = rpc.Client.$create(config.webport, config.connect, user, pass)
 
     client.connectWebsocket((err, conn) => {
-      conn.callAsync = promisify(conn.call)
       if (err) {
         console.log(err)
         return
+      } else if (!conn) {
+        console.log('Server unavailable')
+        return
       }
+
+      conn.callAsync = promisify(conn.call)
 
       client.expose('event', async ([key]) => {
         try {

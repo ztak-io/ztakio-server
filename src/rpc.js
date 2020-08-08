@@ -71,9 +71,17 @@ module.exports = (cfg, core, network, db) => {
         }
       }
       let bname = path.basename(contract)
-      let fpath = './contracts/' + bname + '.asm'
-      if (fs.access(fpath)) {
-        let template = await fs.readFile(fpath, 'utf8')
+      let fpath = './contracts/' + bname
+      if (fs.access(fpath + '.til')) {
+        let template = await fs.readFile(fpath + '.til', 'utf8')
+        try {
+          let preProcessed = mustache.render(template, parameters)
+          return ztak.tilc(preProcessed)
+        } catch(e) {
+          return e.message
+        }
+      } else if (fs.access(fpath + '.asm')) {
+        let template = await fs.readFile(fpath + '.asm', 'utf8')
         try {
           return mustache.render(template, parameters)
         } catch(e) {

@@ -37,7 +37,7 @@ END
   PUT
   PUSHI 1
   VERIFY "error-on-issuance"
-  RET 1
+  RET 0
 
 :send
   POP memo
