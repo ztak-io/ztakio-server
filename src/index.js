@@ -10,7 +10,6 @@ const dbStatsLayer = require('./dbstats')
 const dbWatchLayer = require('./dbwatch')
 const config = require('./config')
 
-
 const db = dbWatchLayer(dbStatsLayer(ztakioDb(leveldown(config.datadir))))
 const network = ztakioCore.networks[config.network || 'mainnet']
 
@@ -33,7 +32,7 @@ function core() {
   return executor
 }
 
-if (process.mainModule === module) {
+function serve(ztakCore) {
   if (config.webserver !== 'no') {
     const websocketEnabled = 'websockets' in config
     const webPort = config.webport || 3041
@@ -45,7 +44,7 @@ if (process.mainModule === module) {
       }
     })
 
-    let methods = require('./rpc')(config, core(), network, db)
+    let methods = require('./rpc')(config, ztakCore, network, db)
     server.expose('core', decorate(methods, [
       require('./access')(config, db)
     ]))
@@ -53,6 +52,10 @@ if (process.mainModule === module) {
     server.listen(webPort, webBind)
     console.log(`HTTP server listening on ${webBind}:${webPort}` + (websocketEnabled?' (websockets enabled)':''))
   }
+}
+
+if (process.mainModule === module) {
+  serve(core())
 } else {
-  module.exports = core()
+  module.exports = { core, serve }
 }

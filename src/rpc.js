@@ -8,6 +8,25 @@ const ztakiodbPkg = require('ztakio-db/package.json')
 const ztakioserverPkg = require('../package.json')
 
 const startTime = BigInt(Date.now())
+
+const tryFiles = async (list) => {
+  for (let i=0; i < list.length; i++) {
+    const {file, cb} = list[i]
+    let data
+    try {
+      data = await fs.readFile(file, 'utf8')
+    } catch (e) {
+      data = null
+    }
+
+    if (data) {
+      return await cb(data)
+    }
+  }
+
+  return null
+}
+
 module.exports = (cfg, core, network, db) => {
   return {
     'info': async () => {
@@ -29,8 +48,8 @@ module.exports = (cfg, core, network, db) => {
         throw new Error(`all keys must start with a /`)
       }
 
-      if ('forceroot' in cfg) {
-        if (!key.startsWith(cfg.forceroot)) {
+      if ('forceroot') {
+        if (!(key.startsWith(cfg.forceroot) || key.startsWith('/_/'))) { // /_/ is the reserved public namespace
           throw new Error(`this server only handles keys under the ${cfg.forceroot} branch`)
         }
       }
@@ -49,13 +68,15 @@ module.exports = (cfg, core, network, db) => {
     },
 
     'tx': async (envelope) => {
-      const msg = ztak.openEnvelope(Buffer.from(envelope, 'hex'))
+      const txBuffer = Buffer.from(envelope, 'hex')
+      const msg = ztak.openEnvelope(txBuffer)
 
       const prog = Buffer.from(msg.data, 'hex')
       const executor = core(msg.from)
       let res = await executor(prog)
-      console.log(res)
+
       if (res === true) {
+        await db.put(`/_/tx.${msg.txid}`, txBuffer)
         return msg.txid
       } else {
         throw new Error('invalid-tx:' + res.split(' ').pop())
@@ -72,21 +93,14 @@ module.exports = (cfg, core, network, db) => {
       }
       let bname = path.basename(contract)
       let fpath = './contracts/' + bname
-      if (fs.access(fpath + '.til')) {
-        let template = await fs.readFile(fpath + '.til', 'utf8')
-        try {
-          let preProcessed = mustache.render(template, parameters)
-          return ztak.tilc(preProcessed)
-        } catch(e) {
-          return e.message
-        }
-      } else if (fs.access(fpath + '.asm')) {
-        let template = await fs.readFile(fpath + '.asm', 'utf8')
-        try {
-          return mustache.render(template, parameters)
-        } catch(e) {
-          return e.message
-        }
+
+      let result = tryFiles([
+        {file: fpath + '.til', cb: (code) => ztak.tilc(mustache.render(code, parameters))},
+        {file: fpath + '.asm', cb: (code) => mustache.render(code, parameters)},
+      ])
+
+      if (result) {
+        return result
       } else {
         throw new Error(`Contract ${bname} isn't loaded in this instance`)
       }
