@@ -30,14 +30,19 @@ const tryFiles = async (list) => {
 module.exports = (cfg, core, network, db) => {
   return {
     'info': async () => {
-      return {
+      let ob = {
         'ztakio-core.version': ztakiocorePkg.version,
         'ztakio-db.version': ztakiodbPkg.version,
         'ztakio-server.version': ztakioserverPkg.version,
         'defaultAddressVersion': network.pubKeyHash,
-        'dbStats': db.stats,
         'runningSeconds': ((BigInt(Date.now()) - startTime) / 1000n).toString()
       }
+
+      if (db.stats) {
+        ob.dbStats = db.stats
+      }
+
+      return ob
     },
 
     'get': async (key, encoding) => {
@@ -71,16 +76,66 @@ module.exports = (cfg, core, network, db) => {
       const txBuffer = Buffer.from(envelope, 'hex')
       const msg = ztak.openEnvelope(txBuffer)
 
+      let existing = await db.get(`/_/tx.${msg.txid}`)
+      if (existing) {
+        throw new Error('tx-exists')
+      }
+
+      db.setCurrentTxid(msg.txid)
       const prog = Buffer.from(msg.data, 'hex')
       const executor = core(msg.from)
-      let res = await executor(prog)
+      let res = await executor(prog, cfg.requireFederation)
 
-      if (res === true) {
-        await db.put(`/_/tx.${msg.txid}`, txBuffer)
-        return msg.txid
+      if (res === true || typeof(res) === 'object') {
+        let canCommit = typeof(res) !== 'object'
+
+        if (typeof(res) === 'object') {
+          let feds = {}
+          for (let fid in res) {
+            let spl = fid.split('/')
+
+            for (let i=2; i <= spl.length; i++) {
+              let fedname = spl.slice(0, i).join('/')
+              let fedEntries = await db.get(`${fedname}.entrypoints`)
+
+              if (fedEntries && 'federation' in fedEntries) {
+                feds[fedname] = Buffer.from('')
+              }
+            }
+          }
+
+          if (Object.keys(feds).length > 0) {
+            // Only commit transactions that have federation
+            canCommit = true
+            await db.put(`/_/tx.${msg.txid}.feds`, feds)
+          }
+        }
+
+        if (canCommit) {
+          await db.put(`/_/tx.${msg.txid}`, txBuffer)
+          if (cfg.requireFederation) {
+            let mempool = await db.get('/_/mempool')
+            if (!mempool) {
+              mempool = []
+            }
+            mempool.push(msg.txid)
+            await db.put('/_/mempool', mempool)
+          }
+          return msg.txid
+        } else {
+          if (cfg.requireFederation) {
+            throw new Error('invalid-tx:requires-federation')
+          } else {
+            throw new Error('invalid-tx')
+          }
+        }
       } else {
         throw new Error('invalid-tx:' + res.split(' ').pop())
       }
+    },
+
+    'mempool': async () => {
+      return await db.get('/_/mempool')
     },
 
     'template': async (contract, parameters) => {
@@ -107,6 +162,9 @@ module.exports = (cfg, core, network, db) => {
     },
 
     'subscribe': async (regex, opts) => {
+      if (!db.registerWatcher) {
+        throw new Error('DB Subscription not enabled on this server')
+      }
       console.log('Registering sub:', regex)
       const notifier = (k, v) => {
         opts.call('event', k)

@@ -75,7 +75,7 @@ const commands = {
   },
 
   'exec': async (hex) => {
-    let core = require('./index')
+    let { core } = require('./index')
 
     if (!hex || typeof(hex) === 'object') {
       hex = await readStdin()
@@ -84,7 +84,7 @@ const commands = {
     const msg = ztak.openEnvelope(Buffer.from(hex, 'hex'))
 
     const prog = Buffer.from(msg.data, 'hex')
-    const executor = core(msg.from)
+    const executor = core()(msg.from)
     console.log(await executor(prog))
   },
 
@@ -141,9 +141,10 @@ const commands = {
     const [user, pass] = (config.webbasicauth || '').split(':')
     const client = rpc.Client.$create(config.webport, config.connect, user, pass)
 
-    client.connectWebsocket((err, conn) => {
+    client.connectWebsocket(async (err, conn) => {
       if (err) {
         console.log(err)
+        process.exit(1)
         return
       } else if (!conn) {
         console.log('Server unavailable')
@@ -162,12 +163,66 @@ const commands = {
       })
 
       try {
-        conn.callAsync('core.subscribe', [regex])
+        await conn.callAsync('core.subscribe', [regex])
         console.log('Subscribed to events on:', regex)
       } catch(e) {
-        console.log('Error while subscribing', e)
+        console.log('Error while subscribing:', e)
+        process.exit(1)
       }
     })
+  },
+
+  'mine': async (options) => {
+    if (options.wif) {
+      const ecpair = bitcoin.ECPair.fromWIF(options.wif)
+      let network = ztak.networks.mainnet
+
+      if (config.testnet) {
+        network = ztak.networks.testnet
+      }
+
+      const { address } = bitcoin.payments.p2pkh({ pubkey: ecpair.publicKey, network: network })
+
+      const [user, pass] = (config.webbasicauth || '').split(':')
+      const client = rpc.Client.$create(config.webport, config.connect, user, pass)
+      client.callAsync = promisify(client.call)
+
+      let mempool = await client.callAsync('core.mempool', [])
+      let poaSignedTxs = {}
+
+      for (let i=0; i < mempool.length; i++) {
+        let txid = mempool[i]
+        let txFeds = await client.callAsync('core.get', [`/_/tx.${txid}.feds`])
+
+        for (let fed in txFeds) {
+          let fedData = await client.callAsync('core.get', [`${fed}.meta`])
+          if (fedData.FedType === 'poa') {
+            // This federation uses proof of authority
+            for (let poaIdx=0; poaIdx < 10000; poaIdx++) {
+              let key = `${fed}/_poa_${poaIdx}`
+              let poaData = await client.callAsync('core.get', [key])
+
+              if (poaData !== null) {
+                if (poaData === address) {
+                  // We can sign this!
+                  let signature = ecpair.sign(Buffer.from(txid, 'hex'))
+                  poaSignedTxs[txid] = signature.toString('hex')
+                }
+              } else {
+                // On the first "null" we bailout
+                break
+              }
+            }
+          }
+        }
+
+        if (Object.keys(poaSignedTxs).length > 0) {
+          console.log({poa: poaSignedTxs})
+        }
+      }
+    } else {
+      console.log('Must pass a --wif parameter for the signing key')
+    }
   }
 }
 

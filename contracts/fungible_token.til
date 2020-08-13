@@ -1,0 +1,55 @@
+define {{{path}}} {
+  meta : {
+    Info : {
+      decimals: {{{decimals}}}
+    }
+    Name : "{{{name}}}"
+    Version: "{{{tokenVersion}}}"
+    Author: "{{{author}}}"
+  }
+
+  owner issuance(amount) {
+    prev_balance = geti(caller, 0)
+    new_balance = prev_balance + amount
+    put(caller, new_balance)
+    verify(1, "issuance-success")
+  }
+
+  entry send(destination, amount, memo) {
+    caller_balance = geti(caller, 0)
+    if (caller_balance < amount) {
+      verify(0, "insufficient-balance-on-send")
+    } else {
+      receiver_balance = geti(destination, 0)
+      put(caller, caller_balance - amount)
+      put(destination, receiver_balance + amount)
+      _cleanup_address(caller)
+      verify(1, "send-success")
+    }
+  }
+
+  entry sendfrom(source, destination, amount) {
+    caller_balance = geti(source, 0)
+    if (caller_balance < amount) {
+      verify(0, "insufficient-balance-on-sendfrom")
+    } else {
+      receiver_balance = geti(destination, 0)
+      put(source, caller_balance - amount)
+      put(destination, receiver_balance + amount)
+      _cleanup_address(source)
+      verify(1, "sendfrom-success")
+    }
+  }
+
+  entry balance(address) {
+    balance = geti(address, 0)
+    return balance
+  }
+
+  func _cleanup_address(address) {
+    balance = geti(address, 0)
+    if (balance == 0) {
+      del(address)
+    }
+  }
+}
