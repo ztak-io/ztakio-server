@@ -59,14 +59,14 @@ module.exports = (db) => {
     //
   }
 
-  const commit = () => {
+  const commit = (...args) => {
     currentTxid = null
-    return db.commit()
+    return db.commit(...args)
   }
 
-  const rollback = () => {
+  const rollback = (...args) => {
     currentTxid = null
-    return db.rollback()
+    return db.rollback(...args)
   }
 
   const setCurrentTxid = (txid) => {

@@ -232,7 +232,6 @@ const commands = {
               opcodes.push(`PUSHI ${tx[1][0]}`)
               opcodes.push(`PUSHS "${tx[1][1]}"`)
               opcodes.push(`ECALL ${fed}:federation`)
-              console.error(tx)
             }
             opcodes.push('PUSHI 1')
             opcodes.push('VERIFY "tx-error-while-verify"')

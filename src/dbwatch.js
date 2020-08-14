@@ -36,20 +36,20 @@ module.exports = (db) => {
     return db.start()
   }
 
-  const commit = () => {
+  const commit = (...args) => {
     inTransaction = false
     for (let i=0; i < notificationQueue.length; i++) {
       const {k, v} = notificationQueue[i]
       notify(k, v)
     }
     notificationQueue = []
-    return db.commit()
+    return db.commit(...args)
   }
 
-  const rollback = () => {
+  const rollback = (...args) => {
     inTransaction = false
     notificationQueue = []
-    return db.rollback()
+    return db.rollback(...args)
   }
 
   const registerWatcher = (path, watcher) => {

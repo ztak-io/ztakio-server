@@ -134,6 +134,87 @@ module.exports = (cfg, core, network, db) => {
       }
     },
 
+    'block': async (envelope) => {
+      if (!cfg.requireFederation) {
+        throw new Error('no-federation-config')
+      }
+      const blockBuffer = Buffer.from(envelope, 'hex')
+      const msg = ztak.openEnvelope(blockBuffer)
+
+      let existing = await db.get(`/_/block.${msg.txid}`)
+      if (existing) {
+        throw new Error('block-exists')
+      }
+
+      db.setCurrentTxid(msg.txid)
+      const prog = Buffer.from(msg.data, 'hex')
+      const executor = core(msg.from)
+      let res = await executor(prog, cfg.requireFederation)
+
+      if (typeof(res) === 'object') {
+        let canCommit = false
+
+        if (res.commitState) {
+          const testFedRegex = /\/_\/tx\..{64}\.feds/
+          let keysModified = Object.entries(res.commitState)
+          let amountReservedTxKeys = keysModified.filter(x => testFedRegex.test(x))
+
+          if (keysModified.length === amountReservedTxKeys.length) {
+            canCommit = true
+          }
+        }
+
+        if (canCommit) {
+          await db.commit(res.commitState)
+          await db.put(`/_/block.${msg.txid}`, blockBuffer)
+
+          let mempool = await db.get('/_/mempool')
+          const extractTxIdRegex = /\/_\/tx\.(.{64})\.feds/
+
+          for (let key in res.commitState) {
+            let feds = await db.get(key)
+            if (feds) {
+              let canExec = true
+              for (let fedId in feds) {
+                canExec = canExec && feds[fedId].length > 0
+              }
+
+              if (canExec) {
+                let matches = extractTxIdRegex.exec(key)
+                if (matches) {
+                  const txId = matches.pop()
+                  let tx = await db.get(`/_/tx.${txId}`)
+
+                  if (tx) {
+                    try {
+                      console.log(`Commiting TX ${txId} from mempool`)
+                      const txmsg = ztak.openEnvelope(tx)
+                      await executor(Buffer.from(txmsg.data, 'hex'))
+                      mempool = mempool.filter(x => x !== txId)
+                    } catch(e) {
+                      // TODO Tx got invalidated between transmission and mining
+                      console.log(`TX ${txKey} got invalidated before mining`)
+                    }
+                  }
+                }
+              } else {
+                console.log(`TX ${txKey} waiting for more federations to mine it`)
+              }
+            } else {
+              console.log(`TX ${txKey} mined in block but didnt require federation`)
+            }
+          }
+          await db.put('/_/mempool', mempool)
+
+          return msg.txid
+        } else {
+          throw new Error('invalid-block')
+        }
+      } else {
+        throw new Error('invalid-block:' + res.split(' ').map(x => x.toLowerCase()).join('-'))
+      }
+    },
+
     'mempool': async () => {
       return await db.get('/_/mempool')
     },

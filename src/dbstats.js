@@ -23,14 +23,14 @@ module.exports = (db) => {
     return db.start()
   }
 
-  const commit = () => {
+  const commit = (...args) => {
     stats.commit++
-    return db.commit()
+    return db.commit(...args)
   }
 
-  const rollback = () => {
+  const rollback = (...args) => {
     stats.rollback++
-    return db.rollback()
+    return db.rollback(...args)
   }
 
   return {
