@@ -2,6 +2,7 @@ const yargs = require('yargs')
 const ztak = require('ztakio-core')
 const ztakioDb = require('ztakio-db')
 const bitcoin = require('bitcoinjs-lib')
+const bitcoinMessage = require('bitcoinjs-message')
 const fs = require('fs')
 const fsPromises = require('fs').promises
 const mustache = require('mustache')
@@ -204,9 +205,13 @@ const commands = {
 
               if (poaData !== null) {
                 if (poaData === address) {
+                  if (!(fed in poaSignedTxs)) {
+                    poaSignedTxs[fed] = {}
+                  }
                   // We can sign this!
-                  let signature = ecpair.sign(Buffer.from(txid, 'hex'))
-                  poaSignedTxs[txid] = signature.toString('hex')
+                  //let signature = ecpair.sign(Buffer.from(txid, 'hex'))
+                  let signature = bitcoinMessage.sign(txid, ecpair.privateKey, ecpair.compressed)
+                  poaSignedTxs[fed][txid] = [poaIdx, signature.toString('base64')]
                 }
               } else {
                 // On the first "null" we bailout
@@ -217,7 +222,26 @@ const commands = {
         }
 
         if (Object.keys(poaSignedTxs).length > 0) {
-          console.log({poa: poaSignedTxs})
+          let opcodes = []
+          for (let fed in poaSignedTxs) {
+            opcodes.push(`REQUIRE ${fed}`)
+            let txs = Object.entries(poaSignedTxs[fed]).sort((a, b) => a[0].localeCompare(b[0]))
+            for (let txIdx=0; i < txs.length; i++) {
+              let tx = txs[txIdx]
+              opcodes.push(`PUSHS "${tx[0]}"`)
+              opcodes.push(`PUSHI ${tx[1][0]}`)
+              opcodes.push(`PUSHS "${tx[1][1]}"`)
+              opcodes.push(`ECALL ${fed}:federation`)
+              console.error(tx)
+            }
+            opcodes.push('PUSHI 1')
+            opcodes.push('VERIFY "tx-error-while-verify"')
+            opcodes.push(`END`)
+          }
+          let code = opcodes.join('\n')
+          let byteCode = ztak.asm.compile(code)
+          console.log(ztak.buildEnvelope(ecpair, byteCode).toString('hex'))
+          //console.log(code)
         }
       }
     } else {

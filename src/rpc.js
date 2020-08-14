@@ -130,7 +130,7 @@ module.exports = (cfg, core, network, db) => {
           }
         }
       } else {
-        throw new Error('invalid-tx:' + res.split(' ').pop())
+        throw new Error('invalid-tx:' + res.split(' ').map(x => x.toLowerCase()).join('-'))
       }
     },
 
