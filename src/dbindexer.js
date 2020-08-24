@@ -6,7 +6,7 @@ module.exports = (db) => {
   const isAddress = (txt) => {
     try {
       let decoded = bs58check.decode(txt)
-      return decoded.length >= 33 && decoded.length <= 35
+      return decoded.length == 21
     } catch (e) {
       return false
     }

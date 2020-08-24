@@ -1,4 +1,4 @@
-
+const util = require('util')
 module.exports = (db) => {
   const stats = {
     get: 0, put: 0, del: 0, start: 0, commit: 0, rollback: 0
@@ -34,6 +34,7 @@ module.exports = (db) => {
   }
 
   return {
+    ...db,
     get, put, del, start, commit, rollback, stats
   }
 }

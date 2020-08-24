@@ -5,7 +5,7 @@
 # 3) amount
 # 4) memo (can be empty string)
 # The called token must have a "send" entrypoint
-# The send function must return 1 on success
+# The send function must VERIFY on success
 REQUIRE {{{path}}}
 
 # Send

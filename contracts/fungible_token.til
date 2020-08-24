@@ -15,7 +15,7 @@ define {{{path}}} {
     verify(1, "issuance-success")
   }
 
-  entry send(destination, amount, memo) {
+  entry send(destination, amount) {
     caller_balance = geti(caller, 0)
     if (caller_balance < amount) {
       verify(0, "insufficient-balance-on-send")

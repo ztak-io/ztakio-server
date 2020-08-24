@@ -27,6 +27,27 @@ const tryFiles = async (list) => {
   return null
 }
 
+async function dirContents(path) {
+  const dir = await fs.opendir(path)
+  let res = []
+  for await (const dirent of dir) {
+    res.push(dirent.name)
+  }
+  return res
+}
+
+function uniqueFileNames(arr) {
+  let ob = {}
+
+  if (arr) {
+    arr.forEach(x => {
+      ob[path.parse(x).name] = true
+    })
+  }
+
+  return Object.keys(ob)
+}
+
 module.exports = (cfg, core, network, db) => {
   return {
     'info': async () => {
@@ -73,6 +94,9 @@ module.exports = (cfg, core, network, db) => {
     },
 
     'tx': async (envelope) => {
+      if (typeof(envelope) !== 'string') {
+        return "Usage: tx <hex_signed_tx>"
+      }
       const txBuffer = Buffer.from(envelope, 'hex')
       const msg = ztak.openEnvelope(txBuffer)
 
@@ -135,6 +159,10 @@ module.exports = (cfg, core, network, db) => {
     },
 
     'block': async (envelope) => {
+      if (typeof(envelope) !== 'string') {
+        return "Usage: block <hex_block>"
+      }
+
       if (!cfg.requireFederation) {
         throw new Error('no-federation-config')
       }
@@ -188,12 +216,14 @@ module.exports = (cfg, core, network, db) => {
                   if (tx) {
                     try {
                       console.log(`Commiting TX ${txId} from mempool`)
+                      db.setCurrentTxid(txId)
                       const txmsg = ztak.openEnvelope(tx)
                       await executor(Buffer.from(txmsg.data, 'hex'))
                       mempool = mempool.filter(x => x !== txId)
                     } catch(e) {
                       // TODO Tx got invalidated between transmission and mining
-                      console.log(`TX ${txKey} got invalidated before mining`)
+                      console.log(e)
+                      console.log(`TX ${txId} got invalidated before mining`)
                     }
                   }
                 }
@@ -220,6 +250,14 @@ module.exports = (cfg, core, network, db) => {
     },
 
     'template': async (contract, parameters) => {
+      const templatePath = './contracts/'
+      if (typeof(contract) !== 'string') {
+        let help = "Usage: template <template_name> <json_parameters_dict>"
+        let scripts = uniqueFileNames(await dirContents(templatePath))
+        help += "\nAvailable Scripts:\n  " + scripts.join('\n  ')
+        return help
+      }
+
       if (typeof(parameters) === 'string') {
         try {
           parameters = JSON.parse(parameters)
@@ -228,7 +266,7 @@ module.exports = (cfg, core, network, db) => {
         }
       }
       let bname = path.basename(contract)
-      let fpath = './contracts/' + bname
+      let fpath = templatePath + bname
 
       let result = tryFiles([
         {file: fpath + '.til', cb: (code) => ztak.tilc(mustache.render(code, parameters))},
