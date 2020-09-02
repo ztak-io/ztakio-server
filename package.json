@@ -1,6 +1,6 @@
 {
   "name": "ztakio-server",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Ztak.io RPC Server",
   "main": "src/index.js",
   "scripts": {
@@ -30,7 +30,7 @@
     "log": "^6.0.0",
     "mustache": "^4.0.1",
     "yargs": "^15.4.1",
-    "ztakio-core": "0.0.5",
+    "ztakio-core": "0.0.6",
     "ztakio-db": "0.0.4"
   }
 }

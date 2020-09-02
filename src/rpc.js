@@ -218,7 +218,8 @@ module.exports = (cfg, core, network, db) => {
                       console.log(`Commiting TX ${txId} from mempool`)
                       db.setCurrentTxid(txId)
                       const txmsg = ztak.openEnvelope(tx)
-                      await executor(Buffer.from(txmsg.data, 'hex'))
+                      const txExecutor = core(txmsg.from)
+                      await txExecutor(Buffer.from(txmsg.data, 'hex'))
                       mempool = mempool.filter(x => x !== txId)
                     } catch(e) {
                       // TODO Tx got invalidated between transmission and mining
@@ -270,7 +271,7 @@ module.exports = (cfg, core, network, db) => {
 
       let result = tryFiles([
         {file: fpath + '.til', cb: (code) => ztak.tilc(mustache.render(code, parameters))},
-        {file: fpath + '.asm', cb: (code) => mustache.render(code, parameters)},
+        {file: fpath + '.asm', cb: (code) => '#asm\n' + mustache.render(code, parameters)},
       ])
 
       if (result) {
