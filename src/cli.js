@@ -1,3 +1,4 @@
+const url = require('url')
 const yargs = require('yargs')
 const ztak = require('ztakio-core')
 const ztakioDb = require('ztakio-db')
@@ -118,7 +119,21 @@ const commands = {
 
   'rpc': async (command, ...args) => {
     const [user, pass] = (config.webbasicauth || '').split(':')
-    const client = rpc.Client.$create(config.webport, config.connect, user, pass)
+    const opts = {}
+    const serverUrl = url.parse(config.connect)
+    let connectHost
+    if (serverUrl.hostname) {
+      connectHost = serverUrl.hostname
+    } else {
+      connectHost = serverUrl.pathname
+    }
+    const client = rpc.Client.$create(config.webport, connectHost, user, pass)
+    if (serverUrl.protocol === 'https:') {
+      opts.https = true
+    }
+    if (serverUrl.path) {
+      opts.path = serverUrl.path
+    }
 
     let params = args.slice(0, -1)
 
@@ -129,7 +144,7 @@ const commands = {
       }
     }
 
-    client.call(command, params, (err, result) => {
+    client.call(command, params, opts, (err, result) => {
       if (err) {
         console.error(err)
       } else {
