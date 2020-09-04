@@ -13,6 +13,27 @@ const {promisify} = require('util')
 
 const config = require('./config')
 
+const connect = () => {
+  const [user, pass] = (config.webbasicauth || '').split(':')
+  const opts = {}
+  const serverUrl = url.parse(config.connect)
+  let connectHost
+  if (serverUrl.hostname) {
+    connectHost = serverUrl.hostname
+  } else {
+    connectHost = serverUrl.pathname
+  }
+  const client = rpc.Client.$create(config.webport, connectHost, user, pass)
+  if (serverUrl.protocol === 'https:') {
+    opts.https = true
+  }
+  if (serverUrl.path) {
+    opts.path = serverUrl.path
+  }
+
+  return {client, opts}
+}
+
 const readStdin = () => new Promise((resolve, reject) => {
   fs.read(0, (err, bytesRead, buffer) => {
     if (err) {
@@ -118,22 +139,7 @@ const commands = {
   },
 
   'rpc': async (command, ...args) => {
-    const [user, pass] = (config.webbasicauth || '').split(':')
-    const opts = {}
-    const serverUrl = url.parse(config.connect)
-    let connectHost
-    if (serverUrl.hostname) {
-      connectHost = serverUrl.hostname
-    } else {
-      connectHost = serverUrl.pathname
-    }
-    const client = rpc.Client.$create(config.webport, connectHost, user, pass)
-    if (serverUrl.protocol === 'https:') {
-      opts.https = true
-    }
-    if (serverUrl.path) {
-      opts.path = serverUrl.path
-    }
+    const {client, opts} = connect()
 
     let params = args.slice(0, -1)
 
@@ -154,9 +160,13 @@ const commands = {
   },
 
   'watch': async (regex) => {
-    const [user, pass] = (config.webbasicauth || '').split(':')
-    const client = rpc.Client.$create(config.webport, config.connect, user, pass)
-
+    /*const [user, pass] = (config.webbasicauth || '').split(':')
+    const client = rpc.Client.$create(config.webport, config.connect, user, pass)*/
+    const {client, opts} = connect()
+    if (opts.https) {
+      client.host = 'wss://' + client.host + ':443' + opts.path
+      console.log(client.host)
+    }
     client.connectWebsocket(async (err, conn) => {
       if (err) {
         console.log(err)
@@ -179,7 +189,7 @@ const commands = {
       })
 
       try {
-        await conn.callAsync('core.subscribe', [regex])
+        await conn.callAsync('core.subscribe', [regex], opts)
         console.log('Subscribed to events on:', regex)
       } catch(e) {
         console.log('Error while subscribing:', e)
