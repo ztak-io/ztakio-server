@@ -27,7 +27,7 @@ const connect = () => {
   if (serverUrl.protocol === 'https:') {
     opts.https = true
   }
-  if (serverUrl.path) {
+  if (connectHost != 'localhost' && serverUrl.path) {
     opts.path = serverUrl.path
   }
 

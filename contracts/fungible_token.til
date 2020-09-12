@@ -52,4 +52,8 @@ define {{{path}}} {
       del(address)
     }
   }
+
+  deploy dpl() {
+    verify(1, "deploy-success")
+  }
 }
