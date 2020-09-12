@@ -270,7 +270,12 @@ module.exports = (cfg, core, network, db) => {
       let fpath = templatePath + bname
 
       let result = tryFiles([
-        {file: fpath + '.til', cb: (code) => ztak.tilc(mustache.render(code, parameters))},
+        {file: fpath + '.til', cb: (code) => {
+            let rend = mustache.render(code, parameters)
+            let comp = ztak.tilc(rend)
+            return comp
+          }
+        },
         {file: fpath + '.asm', cb: (code) => '#asm\n' + mustache.render(code, parameters)},
       ])
 
