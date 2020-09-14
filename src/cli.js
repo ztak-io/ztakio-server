@@ -13,6 +13,24 @@ const {promisify} = require('util')
 
 const config = require('./config')
 
+const tryFiles = async (list) => {
+  for (let i=0; i < list.length; i++) {
+    const {file, cb} = list[i]
+    let data
+    try {
+      data = await fsPromises.readFile(file, 'utf8')
+    } catch (e) {
+      data = null
+    }
+
+    if (data) {
+      return await cb(data)
+    }
+  }
+
+  return null
+}
+
 const connect = () => {
   const [user, pass] = (config.webbasicauth || '').split(':')
   const opts = {}
@@ -126,7 +144,7 @@ const commands = {
     })
   },
 
-  'template': async (contract, ...args) => {
+  /*'template': async (contract, ...args) => {
     let bname = path.basename(contract)
     let fpath = process.cwd() + '/contracts/' + bname + '.asm'
     try {
@@ -135,6 +153,36 @@ const commands = {
     } catch(e) {
       console.log(e)
       throw new Error(`Contract ${bname} isn't loaded in this instance (check ${fpath} exists`)
+    }
+  },*/
+
+  'template': async (contract, ...args) => {
+    contract = path.basename(contract)
+    const templatePath = './contracts/'
+    if (typeof(contract) !== 'string') {
+      let help = "Usage: template <template_name> [array of -- parameters]"
+      let scripts = uniqueFileNames(await dirContents(templatePath))
+      help += "\nAvailable Scripts:\n  " + scripts.join('\n  ')
+      return help
+    }
+
+    let bname = path.basename(contract)
+    let fpath = templatePath + bname
+
+    let result = await tryFiles([
+      {file: fpath + '.til', cb: (code) => {
+          let rend = mustache.render(code, args[0])
+          let comp = ztak.tilc(rend)
+          return comp
+        }
+      },
+      {file: fpath + '.asm', cb: (code) => '#asm\n' + mustache.render(code, args)},
+    ])
+
+    if (result) {
+      console.log(result)
+    } else {
+      console.log(`Contract ${bname} isn't loaded in this instance`)
     }
   },
 
