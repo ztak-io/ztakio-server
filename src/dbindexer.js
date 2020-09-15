@@ -21,6 +21,15 @@ module.exports = (db) => {
     if (!(k.startsWith('/_/')) && (currentTxid !== null)) {
       let addresses = extractAddresses(k)
 
+      if (typeof(v) === 'object') {
+        for (let x in v) {
+          let vv = v[x]
+          if (isAddress(vv)) {
+            addresses.push(vv)
+          }
+        }
+      }
+
       for (let i=0; i < addresses.length; i++) {
         const indexId = `/_/addr.${addresses[i]}`
         let ob = await db.get(indexId)
