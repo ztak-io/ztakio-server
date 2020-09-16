@@ -17,9 +17,12 @@ module.exports = (db) => {
     return spls.filter(x => isAddress(x))
   }
 
-  const put = async (k, v) => {
+  const put = async (k, v, callerAddress) => {
     if (!(k.startsWith('/_/')) && (currentTxid !== null)) {
       let addresses = extractAddresses(k)
+      if (callerAddress) {
+        addresses.push(callerAddress)
+      }
 
       if (typeof(v) === 'object') {
         for (let x in v) {
