@@ -56,7 +56,8 @@ module.exports = (cfg, core, network, db) => {
         'ztakio-db.version': ztakiodbPkg.version,
         'ztakio-server.version': ztakioserverPkg.version,
         'defaultAddressVersion': network.pubKeyHash,
-        'runningSeconds': ((BigInt(Date.now()) - startTime) / 1000n).toString()
+        'runningSeconds': ((BigInt(Date.now()) - startTime) / 1000n).toString(),
+        'network': ztak.networks.mainnet
       }
 
       if (db.stats) {
