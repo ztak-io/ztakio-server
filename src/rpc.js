@@ -197,8 +197,8 @@ module.exports = (cfg, core, network, db) => {
           await db.commit(res.commitState)
           await db.put(`/_/block.${msg.txid}`, blockBuffer)
 
-          let mempool = await db.get('/_/mempool')
           const extractTxIdRegex = /\/_\/tx\.(.{64})\.feds/
+          const removeFromMempool = {}
 
           for (let key in res.commitState) {
             let feds = await db.get(key)
@@ -221,7 +221,8 @@ module.exports = (cfg, core, network, db) => {
                       const txmsg = ztak.openEnvelope(tx)
                       const txExecutor = core(txmsg.from)
                       await txExecutor(Buffer.from(txmsg.data, 'hex'))
-                      mempool = mempool.filter(x => x !== txId)
+                      //mempool = mempool.filter(x => x !== txId)
+                      removeFromMempool[txId] = true
                     } catch(e) {
                       // TODO Tx got invalidated between transmission and mining
                       console.log(e)
@@ -236,7 +237,8 @@ module.exports = (cfg, core, network, db) => {
               console.log(`TX ${txKey} mined in block but didnt require federation`)
             }
           }
-          await db.put('/_/mempool', mempool)
+          let mempool = await db.get('/_/mempool')
+          await db.put('/_/mempool', mempool.filter(x => !(x in removeFromMempool)))
 
           return msg.txid
         } else {
