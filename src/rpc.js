@@ -237,8 +237,10 @@ module.exports = (cfg, core, network, db) => {
               console.log(`TX ${txKey} mined in block but didnt require federation`)
             }
           }
-          let mempool = await db.get('/_/mempool')
-          await db.put('/_/mempool', mempool.filter(x => !(x in removeFromMempool)))
+          if (Object.keys(removeFromMempool).length > 0) {
+            let mempool = await db.get('/_/mempool')
+            await db.put('/_/mempool', mempool.filter(x => !(x in removeFromMempool)))
+          }
 
           return msg.txid
         } else {
