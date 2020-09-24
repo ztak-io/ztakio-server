@@ -8,6 +8,7 @@ const ztakiodbPkg = require('ztakio-db/package.json')
 const ztakioserverPkg = require('../package.json')
 
 const startTime = BigInt(Date.now())
+let processingBlock = false
 
 const tryFiles = async (list) => {
   for (let i=0; i < list.length; i++) {
@@ -175,79 +176,88 @@ module.exports = (cfg, core, network, db) => {
         throw new Error('block-exists')
       }
 
-      db.setCurrentTxid(msg.txid)
-      const prog = Buffer.from(msg.data, 'hex')
-      const executor = core(msg.from)
-      let res = await executor(prog, cfg.requireFederation)
+      if (processingBlock) {
+        throw new Error('another-block-processing')
+      }
 
-      if (typeof(res) === 'object') {
-        let canCommit = false
+      processingBlock = true
+      try {
+        db.setCurrentTxid(msg.txid)
+        const prog = Buffer.from(msg.data, 'hex')
+        const executor = core(msg.from)
+        let res = await executor(prog, cfg.requireFederation)
 
-        if (res.commitState) {
-          const testFedRegex = /\/_\/tx\..{64}\.feds/
-          let keysModified = Object.entries(res.commitState)
-          let amountReservedTxKeys = keysModified.filter(x => testFedRegex.test(x))
+        if (typeof(res) === 'object') {
+          let canCommit = false
 
-          if (keysModified.length === amountReservedTxKeys.length) {
-            canCommit = true
-          }
-        }
+          if (res.commitState) {
+            const testFedRegex = /\/_\/tx\..{64}\.feds/
+            let keysModified = Object.entries(res.commitState)
+            let amountReservedTxKeys = keysModified.filter(x => testFedRegex.test(x))
 
-        if (canCommit) {
-          await db.commit(res.commitState)
-          await db.put(`/_/block.${msg.txid}`, blockBuffer)
-
-          const extractTxIdRegex = /\/_\/tx\.(.{64})\.feds/
-          const removeFromMempool = {}
-
-          for (let key in res.commitState) {
-            let feds = await db.get(key)
-            if (feds) {
-              let canExec = true
-              for (let fedId in feds) {
-                canExec = canExec && feds[fedId].length > 0
-              }
-
-              if (canExec) {
-                let matches = extractTxIdRegex.exec(key)
-                if (matches) {
-                  const txId = matches.pop()
-                  let tx = await db.get(`/_/tx.${txId}`)
-
-                  if (tx) {
-                    try {
-                      console.log(`Commiting TX ${txId} from mempool`)
-                      db.setCurrentTxid(txId)
-                      const txmsg = ztak.openEnvelope(tx)
-                      const txExecutor = core(txmsg.from)
-                      await txExecutor(Buffer.from(txmsg.data, 'hex'))
-                      //mempool = mempool.filter(x => x !== txId)
-                      removeFromMempool[txId] = true
-                    } catch(e) {
-                      // TODO Tx got invalidated between transmission and mining
-                      console.log(e)
-                      console.log(`TX ${txId} got invalidated before mining`)
-                    }
-                  }
-                }
-              } else {
-                console.log(`TX ${txKey} waiting for more federations to mine it`)
-              }
-            } else {
-              console.log(`TX ${txKey} mined in block but didnt require federation`)
+            if (keysModified.length === amountReservedTxKeys.length) {
+              canCommit = true
             }
           }
-          if (Object.keys(removeFromMempool).length > 0) {
-            let mempool = await db.get('/_/mempool')
-            await db.put('/_/mempool', mempool.filter(x => !(x in removeFromMempool)))
-          }
 
-          return msg.txid
+          if (canCommit) {
+            await db.commit(res.commitState)
+            await db.put(`/_/block.${msg.txid}`, blockBuffer)
+
+            const extractTxIdRegex = /\/_\/tx\.(.{64})\.feds/
+            const removeFromMempool = {}
+
+            for (let key in res.commitState) {
+              let feds = await db.get(key)
+              if (feds) {
+                let canExec = true
+                for (let fedId in feds) {
+                  canExec = canExec && feds[fedId].length > 0
+                }
+
+                if (canExec) {
+                  let matches = extractTxIdRegex.exec(key)
+                  if (matches) {
+                    const txId = matches.pop()
+                    let tx = await db.get(`/_/tx.${txId}`)
+
+                    if (tx) {
+                      try {
+                        console.log(`Commiting TX ${txId} from mempool`)
+                        db.setCurrentTxid(txId)
+                        const txmsg = ztak.openEnvelope(tx)
+                        const txExecutor = core(txmsg.from)
+                        await txExecutor(Buffer.from(txmsg.data, 'hex'))
+                        //mempool = mempool.filter(x => x !== txId)
+                        removeFromMempool[txId] = true
+                      } catch(e) {
+                        // TODO Tx got invalidated between transmission and mining
+                        console.log(e)
+                        console.log(`TX ${txId} got invalidated before mining`)
+                      }
+                    }
+                  }
+                } else {
+                  console.log(`TX ${txKey} waiting for more federations to mine it`)
+                }
+              } else {
+                console.log(`TX ${txKey} mined in block but didnt require federation`)
+              }
+            }
+            if (Object.keys(removeFromMempool).length > 0) {
+              let mempool = await db.get('/_/mempool')
+              await db.put('/_/mempool', mempool.filter(x => !(x in removeFromMempool)))
+            }
+
+            return msg.txid
+          } else {
+            throw new Error('invalid-block')
+          }
         } else {
-          throw new Error('invalid-block')
+          throw new Error('invalid-block:' + res.split(' ').map(x => x.toLowerCase()).join('-'))
         }
-      } else {
-        throw new Error('invalid-block:' + res.split(' ').map(x => x.toLowerCase()).join('-'))
+      } finally {
+        processingBlock = false
       }
     },
 
