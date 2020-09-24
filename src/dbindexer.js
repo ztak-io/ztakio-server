@@ -27,7 +27,7 @@ module.exports = (db) => {
       if (typeof(v) === 'object') {
         for (let x in v) {
           let vv = v[x]
-          if (isAddress(vv)) {
+          if (typeof(vv) === 'string' && isAddress(vv)) {
             addresses.push(vv)
           }
         }

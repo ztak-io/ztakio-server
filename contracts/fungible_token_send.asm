@@ -11,7 +11,6 @@ REQUIRE {{{path}}}
 # Send
 PUSHS "{{{destination}}}"
 PUSHI {{{amount}}}
-PUSHS "{{{memo}}}"
 ECALL {{{path}}}:send
 
 END
