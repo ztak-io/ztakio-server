@@ -20,12 +20,12 @@ define {{{path}}} {
     if (caller_balance < amount) {
       verify(0, "insufficient-balance-on-send")
     } else {
-      receiver_balance = geti(destination, 0)
       new_caller_balance = caller_balance - amount
       put(caller, new_caller_balance)
+      _cleanup_address(caller)
+      receiver_balance = geti(destination, 0)
       new_receiver_balance = receiver_balance + amount
       put(destination, new_receiver_balance)
-      _cleanup_address(caller)
       verify(1, "send-success")
     }
   }
