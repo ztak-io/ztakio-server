@@ -261,6 +261,27 @@ module.exports = (cfg, core, network, db) => {
       }
     },
 
+    'purgemempool': async () => {
+      let mempool = await db.get('/_/mempool')
+      let removes = {}
+
+      for (let i=0; i < mempool.length; i++) {
+        let txid = mempool[i]
+        let tx = await db.get(`/_/tx.${txid}`)
+
+        if (!tx) {
+          removes[txid] = true
+        }
+      }
+
+      if (Object.keys(removes).length > 0) {
+        let mempool = await db.get('/_/mempool')
+        await db.put('/_/mempool', mempool.filter(x => !(x in removes)))
+      }
+
+      return Object.keys(removes)
+    },
+
     'mempool': async () => {
       return await db.get('/_/mempool')
     },
