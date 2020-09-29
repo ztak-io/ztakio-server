@@ -65,6 +65,8 @@ function serve(ztakCore) {
       require('./access')(config, db)
     ]))
 
+    require('./cron')(ztakCore, db)
+
     server.listen(webPort, webBind)
     console.log(`HTTP server listening on ${webBind}:${webPort}` + (websocketEnabled?' (websockets enabled)':''))
   }
