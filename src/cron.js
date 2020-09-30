@@ -1,3 +1,4 @@
+const JSBI = require('jsbi')
 const { asm } = require('ztakio-core')
 
 module.exports = async (core, db) => {
@@ -6,7 +7,8 @@ module.exports = async (core, db) => {
   const orderedInsert = (k, v) => {
     let i = 0
     while (i < orderedEventList.length) {
-      if (orderedEventList[i].params.timestamp.isLessThan(v.timestamp)) {
+      let item = orderedEventList[i]
+      if (JSBI.lessThan(item.params.timestamp, v.timestamp)) {
         i++
       } else {
         break
@@ -38,7 +40,7 @@ module.exports = async (core, db) => {
       await db.del(item.key)
       let {timestamp, entry, namespace, ...params} = item.params
 
-      console.log('exec', entry, 'on namespace', namespace, 'with params', params)
+      console.log('cron exec', entry, 'on namespace', namespace, 'with params', params)
       let cronCall = [ 'REQUIRE ' + namespace, 'NEW' ]
 
       for (let x in params) {
