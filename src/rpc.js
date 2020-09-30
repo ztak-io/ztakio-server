@@ -6,6 +6,7 @@ const asm = require('ztakio-core')
 const ztakiocorePkg = require('ztakio-core/package.json')
 const ztakiodbPkg = require('ztakio-db/package.json')
 const ztakioserverPkg = require('../package.json')
+const JSBI = require('jsbi')
 
 const startTime = BigInt(Date.now())
 let processingBlock = false
@@ -91,6 +92,17 @@ module.exports = (cfg, core, network, db) => {
       }
       if (typeof(ret) === 'bigint') {
         ret = ret.toString()
+      }
+      let isObject = typeof(ret) === 'object'
+      if (isObject && 'sign' in ret && '0' in ret) {
+        ret = JSBI.toNumber(ret)
+      } else if (isObject) {
+        for (let x in ret) {
+          let item = ret[x]
+          if (typeof(item) === 'object' && 'sign' in item && '0' in item) {
+            ret[x] = JSBI.toNumber(item)
+          }
+        }
       }
       return ret
     },
