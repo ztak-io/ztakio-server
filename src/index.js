@@ -32,8 +32,8 @@ function startDb() {
 function core() {
   let ut = ztakioCore.utils(network)
 
-  const executor = (callerAddress) => {
-    const context = ztakioCore.asm.createContext(ut, db, callerAddress)
+  const executor = (callerAddress, txid) => {
+    const context = ztakioCore.asm.createContext(ut, db, callerAddress, txid)
     return async (byteCode, onlyEval) => {
       try {
         context.loadProgram(byteCode)

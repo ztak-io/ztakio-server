@@ -125,7 +125,7 @@ const commands = {
     const msg = ztak.openEnvelope(Buffer.from(hex, 'hex'))
 
     const prog = Buffer.from(msg.data, 'hex')
-    const executor = core()(msg.from)
+    const executor = core()(msg.from, msg.txid)
     console.log(await executor(prog))
   },
 

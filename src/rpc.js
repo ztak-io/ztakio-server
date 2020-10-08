@@ -93,14 +93,15 @@ module.exports = (cfg, core, network, db) => {
       if (typeof(ret) === 'bigint') {
         ret = ret.toString()
       }
-      let isObject = typeof(ret) === 'object'
-      if (isObject && 'sign' in ret && '0' in ret) {
+      let isObject = typeof(ret) === 'object' && ret !== null
+      if (isObject && 'sign' in ret) {
         ret = JSBI.toNumber(ret)
       } else if (isObject) {
         for (let x in ret) {
           let item = ret[x]
-          if (typeof(item) === 'object' && 'sign' in item && '0' in item) {
+          if (typeof(item) === 'object' && ret !== null && 'sign' in item) {
             ret[x] = JSBI.toNumber(item)
+            console.log(x, x instanceof JSBI)
           }
         }
       }
@@ -121,7 +122,7 @@ module.exports = (cfg, core, network, db) => {
 
       db.setCurrentTxid(msg.txid)
       const prog = Buffer.from(msg.data, 'hex')
-      const executor = core(msg.from)
+      const executor = core(msg.from, msg.txid)
       let res = await executor(prog, cfg.requireFederation)
 
       if (res === true || typeof(res) === 'object') {
@@ -196,7 +197,7 @@ module.exports = (cfg, core, network, db) => {
       try {
         db.setCurrentTxid(msg.txid)
         const prog = Buffer.from(msg.data, 'hex')
-        const executor = core(msg.from)
+        const executor = core(msg.from, msg.txid)
         let res = await executor(prog, cfg.requireFederation)
 
         if (typeof(res) === 'object') {
@@ -238,7 +239,7 @@ module.exports = (cfg, core, network, db) => {
                         console.log(`Commiting TX ${txId} from mempool`)
                         db.setCurrentTxid(txId)
                         const txmsg = ztak.openEnvelope(tx)
-                        const txExecutor = core(txmsg.from)
+                        const txExecutor = core(txmsg.from, txId)
                         await txExecutor(Buffer.from(txmsg.data, 'hex'))
                         //mempool = mempool.filter(x => x !== txId)
                         removeFromMempool[txId] = true
