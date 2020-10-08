@@ -101,7 +101,6 @@ module.exports = (cfg, core, network, db) => {
           let item = ret[x]
           if (typeof(item) === 'object' && ret !== null && 'sign' in item) {
             ret[x] = JSBI.toNumber(item)
-            console.log(x, x instanceof JSBI)
           }
         }
       }
