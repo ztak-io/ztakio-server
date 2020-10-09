@@ -319,6 +319,20 @@ const commands = {
     } else {
       console.log('Must pass a --wif parameter for the signing key')
     }
+  },
+
+  'changeowner': async (namespace, newOwner) => {
+    const leveldown = require('leveldown')
+    const db = ztakioDb(leveldown(config.datadir))
+    let ldb = db._raw()
+
+    let meta = await ldb.get(namespace + '.meta')
+    meta = JSON.parse(meta.toString('utf8'))
+    console.log('PREV', meta)
+    meta._v.Author = newOwner
+    meta._v.Address = newOwner
+    await ldb.put(namespace + '.meta', JSON.stringify(meta))
+    console.log('NEW', meta)
   }
 }
 
