@@ -17,8 +17,19 @@ module.exports = async (core, db) => {
     orderedEventList = [].concat(orderedEventList.slice(0, i), [{key: k, params: v}], orderedEventList.slice(i))
   }
 
+  const remove = (k) => {
+    let idx = orderedEventList.findIndex(x => x.key === k)
+    if (idx >= 0) {
+      orderedEventList.splice(idx, 1)
+    }
+  }
+
   db.registerWatcher('\\/_\\/cron\\..*', (k, v) => {
-    orderedInsert(k, v)
+    if (v._DELETED_) {
+      remove(k)
+    } else {
+      orderedInsert(k, v)
+    }
   })
 
   let gen = db.iterator({ gt: '/_/cron.', lt: '/_/d' })

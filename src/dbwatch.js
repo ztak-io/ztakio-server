@@ -84,7 +84,7 @@ module.exports = (db) => {
 
   return {
     ...db,
-    put, start, commit, rollback,
+    del, put, start, commit, rollback,
     registerWatcher
   }
 }
