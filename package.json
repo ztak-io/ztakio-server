@@ -1,6 +1,6 @@
 {
   "name": "ztakio-server",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "Ztak.io RPC Server",
   "main": "src/index.js",
   "scripts": {

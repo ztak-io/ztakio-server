@@ -1,5 +1,6 @@
 const fs = require('fs').promises
 const path = require('path')
+const crypto = require('crypto')
 const mustache = require('mustache')
 const ztak = require('ztakio-core')
 const asm = require('ztakio-core')
@@ -7,6 +8,8 @@ const ztakiocorePkg = require('ztakio-core/package.json')
 const ztakiodbPkg = require('ztakio-db/package.json')
 const ztakioserverPkg = require('../package.json')
 const JSBI = require('jsbi')
+
+const MAX_ITER_FETCH_AMOUNT = 10
 
 const startTime = BigInt(Date.now())
 let processingBlock = false
@@ -49,6 +52,19 @@ function uniqueFileNames(arr) {
 
   return Object.keys(ob)
 }
+
+const iteratorId = () => new Promise((resolve, reject) => {
+  crypto.randomBytes(16, (err, buf) => {
+    if (err) {
+      reject(err)
+    } else {
+      resolve(buf.toString('hex'))
+    }
+  })
+})
+
+// TODO: Close the iterators here after timeout
+const currentIterators = {}
 
 module.exports = (cfg, core, network, db) => {
   return {
@@ -349,6 +365,50 @@ module.exports = (cfg, core, network, db) => {
       })
 
       db.registerWatcher(regex, notifier)
+    },
+
+    'inititerator': async (options) => {
+      let matcher
+      if ('match' in options) {
+        matcher = new RegExp(options.match)
+        delete options.match
+      }
+      let iter = db.iterator(options)
+      let id = await iteratorId()
+      currentIterators[id] = { iter, ts: Date.now(), matcher }
+
+      return id
+    },
+
+    'fetchiterator': async (id, amount) => {
+      if (!(id in currentIterators)) {
+        return null
+      }
+
+      if (amount > MAX_ITER_FETCH_AMOUNT) {
+        amount = MAX_ITER_FETCH_AMOUNT
+      }
+
+      let res = []
+      let iterMeta = currentIterators[id]
+      for (let i=0; i < amount; i++) {
+        try {
+          let {value, done} = await iterMeta.iter.next()
+          if (done) {
+            delete currentIterators[id]
+            break
+          } else if (value) {
+            if (!iterMeta.matcher || iterMeta.matcher.test(value.key)) {
+              res.push({key: value.key, value: value.value})
+            }
+          }
+        } catch(e) {
+          throw e
+          delete currentIterators[id]
+        }
+      }
+
+      return res
     }
   }
 }
