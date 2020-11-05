@@ -3,7 +3,6 @@ const path = require('path')
 const crypto = require('crypto')
 const mustache = require('mustache')
 const ztak = require('ztakio-core')
-const asm = require('ztakio-core')
 const ztakiocorePkg = require('ztakio-core/package.json')
 const ztakiodbPkg = require('ztakio-db/package.json')
 const ztakioserverPkg = require('../package.json')
@@ -65,6 +64,13 @@ const iteratorId = () => new Promise((resolve, reject) => {
 
 // TODO: Close the iterators here after timeout
 const currentIterators = {}
+let currentVerificationCallbackWatchers = []
+
+ztak.asm.registerVerificationCallback((msg) => {
+  currentVerificationCallbackWatchers.forEach(notif => {
+    notif(msg)
+  })
+})
 
 module.exports = (cfg, core, network, db) => {
   return {
@@ -365,6 +371,22 @@ module.exports = (cfg, core, network, db) => {
       })
 
       db.registerWatcher(regex, notifier)
+    },
+
+    'verifyevents': async (opts) => {
+      const notifier = (v) => {
+        opts.call('verifyevent', v)
+      }
+
+      opts.stream(() => {
+        console.log('Sub for verify events closed')
+        currentVerificationCallbackWatchers =
+          currentVerificationCallbackWatchers.filter(x => x !== notifier)
+      })
+
+      //db.registerWatcher(regex, notifier)
+      console.log('Client registering for verify events')
+      currentVerificationCallbackWatchers.push(notifier)
     },
 
     'inititerator': async (options) => {
