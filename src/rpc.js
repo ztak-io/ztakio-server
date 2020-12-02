@@ -412,6 +412,7 @@ module.exports = (cfg, core, network, db) => {
       }
 
       let res = []
+      let hadValues = false
       let iterMeta = currentIterators[id]
       for (let i=0; i < amount; i++) {
         try {
@@ -420,6 +421,7 @@ module.exports = (cfg, core, network, db) => {
             delete currentIterators[id]
             break
           } else if (value) {
+            hadValues = true
             if (!iterMeta.matcher || iterMeta.matcher.test(value.key)) {
               res.push({key: value.key, value: value.value})
             }
@@ -430,7 +432,7 @@ module.exports = (cfg, core, network, db) => {
         }
       }
 
-      return res
+      return { res, hadValues }
     }
   }
 }
