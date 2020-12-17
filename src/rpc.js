@@ -31,6 +31,18 @@ const tryFiles = async (list) => {
   return null
 }
 
+function simplifyJSBI(o) {
+  let r = {}
+  for (let x in o) {
+    if (o[x] instanceof JSBI) {
+      r[x] = o[x].toString()
+    } else {
+      r[x] = o[x]
+    }
+  }
+  return r
+}
+
 async function dirContents(path) {
   const dir = await fs.opendir(path)
   let res = []
@@ -423,7 +435,7 @@ module.exports = (cfg, core, network, db) => {
           } else if (value) {
             hadValues = true
             if (!iterMeta.matcher || iterMeta.matcher.test(value.key)) {
-              res.push({key: value.key, value: value.value})
+              res.push({key: value.key, value: simplifyJSBI(value.value)})
             }
           }
         } catch(e) {
