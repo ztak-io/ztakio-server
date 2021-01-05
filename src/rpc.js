@@ -295,6 +295,7 @@ module.exports = (cfg, core, network, db) => {
               await db.put('/_/mempool', mempool.filter(x => !(x in removeFromMempool)))
             }
 
+            console.log(`Block ${msg.txid} commited`)
             return msg.txid
           } else {
             throw new Error('invalid-block')
@@ -366,6 +367,19 @@ module.exports = (cfg, core, network, db) => {
       } else {
         throw new Error(`Contract ${bname} isn't loaded in this instance`)
       }
+    },
+
+    'available_contracts': async () => {
+      const templatePath = './contracts/'
+      let scripts = (await dirContents(templatePath)).filter(x => x.endsWith('.til'))
+      let userScripts = []
+      for (let i=0; i < scripts.length; i++) {
+        let content = await fs.readFile(templatePath + scripts[i], 'utf8')
+        if (content.indexOf('__user_deployable : "1"') >= 0) {
+          userScripts.push(scripts[i])
+        }
+      }
+      return uniqueFileNames(userScripts)
     },
 
     'subscribe': async (regex, opts) => {

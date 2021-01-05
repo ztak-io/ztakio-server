@@ -6,6 +6,7 @@ define {{{path}}} {
     Name : "{{{name}}}"
     Version: "{{{tokenVersion}}}"
     Author: "{{{author}}}"
+    __user_deployable : "1"
   }
 
   owner issuance(amount) {

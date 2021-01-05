@@ -10,6 +10,7 @@ const mustache = require('mustache')
 const path = require('path')
 const rpc = require('json-rpc2')
 const {promisify} = require('util')
+const {crypto} = require('bitcoinjs-lib')
 
 const config = require('./config')
 
@@ -333,6 +334,25 @@ const commands = {
     meta._v.Address = newOwner
     await ldb.put(namespace + '.meta', JSON.stringify(meta))
     console.log('NEW', meta)
+  },
+
+  'abihash': async (hex) => {
+    if (!hex || typeof(hex) === 'object') {
+      hex = await readStdin()
+    }
+
+    const decoded = ztak.decode(Buffer.from(hex, 'hex'))
+
+    if (decoded.entrypoints) {
+      let hash = crypto.sha256(decoded.entrypoints.sort().join(','))
+      console.log(hash.toString('hex'))
+    } else {
+      console.log('Not a contract deployment')
+    }
+  },
+
+  'listContracts': async (path, abi) => {
+
   }
 }
 
