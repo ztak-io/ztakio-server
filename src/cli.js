@@ -484,6 +484,19 @@ const commands = {
     console.log(`\nSaved ${num} address indexes`)
 
     process.exit(0)
+  },
+
+  'repairdb': (opts) => {
+    const leveldown = require('leveldown')
+
+    console.log('Repairing database')
+    leveldown.repair(opts.datadir || './data', (err, data) => {
+      if (err) {
+        console.log('Error', err)
+      } else {
+        console.log('Success', data)
+      }
+    })
   }
 }
 
