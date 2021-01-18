@@ -1,16 +1,7 @@
-const bs58check = require('bs58check')
+const { isAddress } = require('./util')
 
 module.exports = (db) => {
   let currentTxid = null
-
-  const isAddress = (txt) => {
-    try {
-      let decoded = bs58check.decode(txt)
-      return decoded.length == 21
-    } catch (e) {
-      return false
-    }
-  }
 
   const extractAddresses = (k) => {
     let spls = k.split('/')

@@ -30,8 +30,10 @@
     "leveldown": "^5.6.0",
     "log": "^6.0.0",
     "mustache": "^4.0.1",
+    "ora": "^5.2.0",
     "yargs": "^15.4.1",
     "ztakio-core": "0.0.28",
-    "ztakio-db": "0.0.8"
+    "ztakio-db": "0.0.8",
+    "ztakio-lib": "^0.0.14"
   }
 }

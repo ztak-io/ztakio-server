@@ -9,8 +9,11 @@ const fsPromises = require('fs').promises
 const mustache = require('mustache')
 const path = require('path')
 const rpc = require('json-rpc2')
-const {promisify} = require('util')
-const {crypto} = require('bitcoinjs-lib')
+const { promisify } = require('util')
+const { crypto } = require('bitcoinjs-lib')
+const { isAddress } = require('./util')
+const ztaklib = require('ztakio-lib')
+const ora = require('ora')
 
 const config = require('./config')
 
@@ -353,6 +356,134 @@ const commands = {
 
   'listContracts': async (path, abi) => {
 
+  },
+
+  'rebuildindex': async (opts) => {
+    const spinner = ora('Rebuilding index').start()
+
+    const leveldown = require('leveldown')
+    const db = ztakioDb(leveldown(opts.datadir || './data'))
+
+    let iter = db.iterator({ gt: '/_/tx.' })
+
+    const ts = Date.now()
+    const index = {}
+    const addressTx = (addr, tx) => {
+      if (!(addr in index)) {
+        index[addr] = { txs: {} }
+      }
+      index[addr].txs[tx] = ts
+    }
+    const addressKey = (addr, key) => {
+      if (!(addr in index)) {
+        index[addr] = { txs: {} }
+      }
+      index[addr][key] = ''
+    }
+
+    let scanning = true
+    let num = 0
+    spinner.color = 'yellow'
+    while (scanning) {
+      let {value: result, done} = await iter.next()
+      if (done) {
+        scanning = false
+      }
+
+      if (result) {
+        let { key, value } = result
+        let txid = key.split('.').pop()
+        if (key.startsWith('/_/tx.') && Buffer.isBuffer(value)) {
+          try {
+            let { from, calls } = ztaklib.decodeCall(value)
+
+            addressTx(from, txid)
+
+            for (let i=0; i < calls.length; i++) {
+              let call = calls[i]
+              for (let path in call) {
+                let params = call[path]
+                for (let j=0; j < params.length; j++) {
+                  if (isAddress(params[j])) {
+                    addressTx(params[j], txid)
+                  }
+                }
+              }
+            }
+          } catch(e) {
+            // ignore
+            console.log(key, e.message)
+          }
+        }
+        num++
+        spinner.text = 'Scanned ' + num + ' txs'
+      }
+    }
+
+    spinner.color = 'blue'
+    console.log(`\nTX Index built, ${Object.keys(index).length} total addresses found`)
+
+    iter = db.iterator({ gt: '/hazama/' })
+    scanning = true
+    num = 0
+    while (scanning) {
+      let {value: result, done} = await iter.next()
+      if (result) {
+        let { key, value } = result
+        let parts = key.split('/')
+        for (let i=0; i < parts.length; i++) {
+          if (isAddress(parts[i])) {
+            addressKey(parts[i], key)
+          }
+        }
+
+        if (typeof(value) === 'string' && isAddress(value)) {
+          addressKey(value, key)
+        }
+      }
+
+      if (done) {
+        scanning = false
+      }
+
+      num++
+      spinner.text = 'Scanned ' + num + ' keys'
+    }
+
+    console.log(`\nKey Index built, ${Object.keys(index).length} total addresses found`)
+    num = 0
+    spinner.color = 'green'
+    for (let addr in index) {
+      let prev = await db.get(`/_/addr.${addr}`)
+      if (prev) {
+        let { txs: prevTxs, ...prevKeys } = prev
+        let { txs, ...keys } = index[addr]
+
+        if (prevTxs) {
+          txs = { ...txs, ...prevTxs}
+        }
+
+        keys = { ...keys, ...prevKeys }
+
+        index[addr] = { txs, ...keys }
+        num++
+      }
+      spinner.text = 'Rebuilt ' + num + ' indexes'
+    }
+
+    console.log(`\nMerged ${num} existing keys`)
+
+    num = 0
+    spinner.color = 'white'
+    for (let addr in index) {
+      await db.put(`/_/addr.${addr}`, index[addr])
+      num++
+      spinner.text = 'Saved ' + num + ' indexes'
+    }
+
+    console.log(`\nSaved ${num} address indexes`)
+
+    process.exit(0)
   }
 }
 
