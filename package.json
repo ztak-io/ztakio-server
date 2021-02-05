@@ -32,7 +32,7 @@
     "mustache": "^4.0.1",
     "ora": "^5.2.0",
     "yargs": "^15.4.1",
-    "ztakio-core": "0.0.28",
+    "ztakio-core": "0.0.29",
     "ztakio-db": "0.0.8",
     "ztakio-lib": "^0.0.14"
   }
