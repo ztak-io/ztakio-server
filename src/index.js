@@ -12,7 +12,11 @@ const db = startDb()
 const network = ztakioCore.networks[config.network || 'mainnet']
 
 function startDb() {
-  let ndb = ztakioDb(leveldown(config.datadir))
+  const ldb = leveldown(config.datadir)
+  let ndb = ztakioDb(ldb)
+
+  // Compactor is only needed if using leveldown
+  ndb = require('./dbcompactor')(ndb, ldb)
 
   if (config.dbstats) {
     ndb = require('./dbstats')(ndb)
