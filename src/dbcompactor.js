@@ -20,7 +20,15 @@ module.exports = (db, ldb) => {
           txSem = null
         }
 
-        await ldb.compactRange(minkey, maxkey)
+        await new Promise((resolve, reject) => {
+          ldb.compactRange(minkey, maxkey, (err) => {
+            if (err) {
+              reject(err)
+            } else {
+              resolve()
+            }
+          })
+        })
         minkey = null
         maxkey = null
       } finally {
