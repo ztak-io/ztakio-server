@@ -40,13 +40,13 @@ module.exports = (db, ldb) => {
   const put = (k, v) => {
     if (minkey === null) {
       minkey = k
-    } else if (minKey.localeCompare(k) > 0) {
+    } else if (minkey.localeCompare(k) > 0) {
       minkey = k
     }
 
     if (maxkey === null) {
       maxkey = k
-    } else if (maxKey.localeCompare(k) < 0) {
+    } else if (maxkey.localeCompare(k) < 0) {
       maxkey = k
     }
     return db.put(k, v)
